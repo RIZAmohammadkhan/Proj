@@ -1,0 +1,551 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="editor-container">
+    <form method="POST" class="editor-form" id="editForm">
+        {{ form.csrf_token }}
+        <div class="editor-header">
+            <div class="title-group">
+                {{ form.title(class="title-input", placeholder="Enter title...", required=true) }}
+            </div>
+            <div class="folder-group">
+                {{ form.folder(class="hidden-folder") }}
+                <select id="folder_select" class="folder-select" onchange="updateFolderField()">
+                    <option value="">📁 No Folder</option>
+                    {% for folder in folders %}
+                    <option value="{{ folder.id }}" {% if prompt.folder_id == folder.id %}selected{% endif %}>📁 {{ folder.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+        <div class="editor-main">
+            {{ form.content(class="content-input") }}
+        </div>
+        <div class="editor-footer">
+            <button type="button" class="btn btn-secondary" onclick="showExitWarning()">
+                <i class="fas fa-arrow-left"></i> Back
+            </button>
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-save"></i> Save
+            </button>
+        </div>
+    </form>
+</div>
+
+<!-- Exit Warning Modal -->
+<div id="exitWarningModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2><i class="fas fa-exclamation-triangle"></i> Unsaved Changes</h2>
+        </div>
+        <div class="modal-body">
+            <p>You have unsaved changes. What would you like to do?</p>
+        </div>
+        <div class="modal-buttons">
+            <button onclick="exitWithoutSaving()" class="btn btn-danger" title="Discard changes">
+                <i class="fas fa-times"></i>
+            </button>
+            <button onclick="closeExitWarning()" class="btn btn-secondary" title="Keep editing">
+                <i class="fas fa-arrow-left"></i>
+            </button>
+            <button onclick="saveAndExit()" class="btn btn-primary" title="Save and exit">
+                <i class="fas fa-save"></i>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Add SimpleMDE CSS -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/simplemde/latest/simplemde.min.css">
+<!-- Add SimpleMDE JS -->
+<script src="https://cdn.jsdelivr.net/simplemde/latest/simplemde.min.js"></script>
+
+<script>
+    // Initialize SimpleMDE with custom options
+    var simplemde = new SimpleMDE({
+        element: document.getElementById("content"),
+        spellChecker: false,
+        autosave: {
+            enabled: true,
+            uniqueId: "editPrompt_{{ prompt.id }}",
+            delay: 1000,
+        },
+        toolbar: [
+            "bold", "italic", "heading", "|",
+            "quote", "unordered-list", "ordered-list", "|",
+            "link", "image", "code", "|",
+            "preview",
+            {
+                name: "side-by-side",
+                action: function customFunction(editor) {
+                    SimpleMDE.toggleSideBySide(editor);
+                    const logoutBtn = document.querySelector('.logout-btn');
+                    if (editor.codemirror.getOption("fullScreen")) {
+                        logoutBtn.style.display = 'none';
+                    } else {
+                        logoutBtn.style.display = 'flex';
+                    }
+                },
+                className: "fa fa-columns no-disable",
+                title: "Toggle Side by Side"
+            },
+            {
+                name: "fullscreen",
+                action: function customFunction(editor) {
+                    const isFullscreen = !editor.isFullscreenActive();
+                    SimpleMDE.toggleFullScreen(editor);
+                    // Update icon based on fullscreen state
+                    const button = editor.toolbarElements["fullscreen"];
+                    const logoutBtn = document.querySelector('.logout-btn');
+                    if (isFullscreen) {
+                        button.className = button.className.replace("fa-expand", "fa-compress");
+                        logoutBtn.style.display = 'none';
+                    } else {
+                        button.className = button.className.replace("fa-compress", "fa-expand");
+                        logoutBtn.style.display = 'flex';
+                    }
+                },
+                className: "fa fa-expand no-disable",
+                title: "Toggle Fullscreen"
+            },
+            "|",
+            "guide"
+        ],
+        status: ["autosave", "lines", "words"],
+        placeholder: "Start writing your prompt here...",
+    });
+
+    // Update hidden folder field when select changes
+    function updateFolderField() {
+        const select = document.getElementById('folder_select');
+        const hiddenInput = document.getElementById('folder');
+        hiddenInput.value = select.value;
+    }
+
+    // Set initial folder value
+    updateFolderField();
+
+    // Exit warning functionality
+    let hasUnsavedChanges = false;
+    const modal = document.getElementById('exitWarningModal');
+
+    simplemde.codemirror.on("change", function() {
+        hasUnsavedChanges = true;
+    });
+
+    document.getElementById('title').addEventListener('input', function() {
+        hasUnsavedChanges = true;
+    });
+
+    document.getElementById('folder_select').addEventListener('change', function() {
+        hasUnsavedChanges = true;
+    });
+
+    function showExitWarning() {
+        if (hasUnsavedChanges) {
+            modal.style.display = "block";
+        } else {
+            window.location.href = "{{ url_for('main.home') }}";
+        }
+    }
+
+    function closeExitWarning() {
+        modal.style.display = "none";
+    }
+
+    function exitWithoutSaving() {
+        window.location.href = "{{ url_for('main.home') }}";
+    }
+
+    function saveAndExit() {
+        document.getElementById('editForm').submit();
+    }
+
+    // Close modal if clicking outside
+    window.onclick = function(event) {
+        if (event.target == modal) {
+            closeExitWarning();
+        }
+    }
+
+    // Form submission
+    document.getElementById('editForm').addEventListener('submit', function() {
+        hasUnsavedChanges = false;
+    });
+</script>
+
+<style>
+    .editor-container {
+        max-width: 1000px;
+        margin: 2rem auto;
+        background: var(--bg-secondary);
+        border-radius: 12px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+    }
+
+    .editor-form {
+        display: flex;
+        flex-direction: column;
+        height: calc(100vh - 8rem);
+    }
+
+    .editor-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1.5rem;
+        border-bottom: 1px solid var(--border-color);
+        background: var(--bg-primary);
+    }
+
+    .title-group {
+        flex: 1;
+        margin-right: 1rem;
+    }
+
+    .title-input {
+        width: 100%;
+        font-size: 1.5rem;
+        padding: 0.75rem 1rem;
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        background: var(--bg-secondary);
+        color: var(--text-primary);
+        transition: all 0.3s ease;
+    }
+
+    .title-input:focus {
+        outline: none;
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 2px rgba(var(--primary-rgb), 0.1);
+    }
+
+    .folder-select {
+        padding: 0.75rem 2.5rem 0.75rem 1rem;
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        background: var(--bg-secondary);
+        color: var(--text-primary);
+        font-size: 1rem;
+        cursor: pointer;
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236b7280' d='M6 8.825L1.175 4 2.238 2.938 6 6.7l3.763-3.762L10.825 4z'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 1rem center;
+        min-width: 200px;
+        transition: all 0.3s ease;
+    }
+
+    .folder-select:focus {
+        outline: none;
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 2px rgba(var(--primary-rgb), 0.1);
+    }
+
+    .editor-main {
+        flex: 1;
+        overflow: hidden;
+    }
+
+    .editor-footer {
+        display: flex;
+        justify-content: space-between;
+        padding: 1rem 1.5rem;
+        background: var(--bg-primary);
+        border-top: 1px solid var(--border-color);
+    }
+
+    .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.75rem 1.5rem;
+        border: none;
+        border-radius: 8px;
+        font-size: 1rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .btn i {
+        font-size: 1rem;
+    }
+
+    .btn-primary {
+        background: var(--primary-color);
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: var(--primary-dark);
+        transform: translateY(-1px);
+    }
+
+    .btn-secondary {
+        background: var(--bg-tertiary);
+        color: var(--text-primary);
+    }
+
+    .btn-secondary:hover {
+        background: var(--border-color);
+        transform: translateY(-1px);
+    }
+
+    .btn-danger {
+        background: #dc3545;
+        color: white;
+    }
+
+    .btn-danger:hover {
+        background: #c82333;
+        transform: translateY(-1px);
+    }
+
+    /* Modal styles */
+    .modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        backdrop-filter: blur(4px);
+        z-index: 1000;
+    }
+
+    .modal-content {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: var(--bg-secondary);
+        padding: 0;
+        border-radius: 12px;
+        min-width: 400px;
+        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2);
+        animation: modalAppear 0.3s ease-out;
+    }
+
+    .modal-header {
+        padding: 1.5rem;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .modal-header h2 {
+        margin: 0;
+        font-size: 1.25rem;
+        color: var(--text-primary);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .modal-body {
+        padding: 1.5rem;
+        color: var(--text-secondary);
+    }
+
+    .modal-buttons {
+        display: flex;
+        gap: 1rem;
+        padding: 1.5rem;
+        background: var(--bg-primary);
+        border-top: 1px solid var(--border-color);
+        border-radius: 0 0 12px 12px;
+    }
+
+    @keyframes modalAppear {
+        from {
+            opacity: 0;
+            transform: translate(-50%, -48%);
+        }
+        to {
+            opacity: 1;
+            transform: translate(-50%, -50%);
+        }
+    }
+
+    /* Enhanced SimpleMDE customization */
+    .editor-toolbar {
+        border: none;
+        background: transparent;
+        padding: 0.75rem;
+        opacity: 1 !important;
+    }
+
+    .editor-toolbar button {
+        color: var(--text-primary) !important;
+        border: none !important;
+        border-radius: 4px !important;
+        transition: all 0.2s ease;
+        width: 35px;
+        height: 35px;
+        background: none !important;
+        margin: 0 2px;
+    }
+
+    .editor-toolbar button:hover {
+        background: rgba(200, 200, 200, 0.05) !important;
+    }
+
+    .editor-toolbar button.active {
+        background: rgba(200, 200, 200, 0.1) !important;
+    }
+
+    .editor-toolbar i.separator {
+        border-left: 1px solid rgba(200, 200, 200, 0.1);
+        margin: 0 8px;
+    }
+
+    .editor-toolbar.disabled-for-preview button:not(.no-disable) {
+        background: none !important;
+        opacity: 0.3;
+    }
+
+    .editor-toolbar.fullscreen {
+        background: var(--bg-primary) !important;
+    }
+
+    .editor-preview-side {
+        background: var(--bg-primary) !important;
+        border-left: 1px solid var(--border-color) !important;
+    }
+
+    .editor-statusbar {
+        padding: 0.75rem;
+        color: var(--text-secondary) !important;
+        border-top: 1px solid var(--border-color);
+        background: var(--bg-primary);
+    }
+
+    /* Save button styling */
+    .editor-footer .btn-primary {
+        background: var(--primary-color);
+        color: white;
+        border: none;
+        padding: 0.75rem 1.5rem;
+        border-radius: 8px;
+        font-weight: 500;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        transition: all 0.2s ease;
+    }
+
+    .editor-footer .btn-primary:hover {
+        background: var(--primary-dark);
+        transform: translateY(-1px);
+    }
+
+    /* Improved CodeMirror styling */
+    .CodeMirror {
+        background: var(--bg-primary) !important;
+        color: var(--text-primary) !important;
+        border: none !important;
+        font-family: 'JetBrains Mono', monospace !important;
+        height: 100% !important;
+        padding: 1rem;
+    }
+
+    .CodeMirror-cursor {
+        border-color: var(--text-primary) !important;
+    }
+
+    .CodeMirror-selected {
+        background: var(--bg-tertiary) !important;
+    }
+
+    .CodeMirror-focused {
+        border-color: var(--primary-color) !important;
+    }
+
+    /* Preview styling */
+    .editor-preview,
+    .editor-preview-side {
+        background: var(--bg-primary) !important;
+        color: var(--text-primary) !important;
+        padding: 2rem !important;
+        font-family: 'sans-serif';
+    }
+
+    .editor-preview pre,
+    .editor-preview-side pre {
+        background: var(--bg-secondary) !important;
+        border-radius: 6px;
+        padding: 1rem;
+    }
+
+    .editor-preview code,
+    .editor-preview-side code {
+        color: var(--primary-color) !important;
+        background: var(--bg-secondary);
+        padding: 0.2rem 0.4rem;
+        border-radius: 4px;
+    }
+
+    /* Fullscreen mode improvements */
+    .editor-toolbar.fullscreen {
+        background: var(--bg-primary) !important;
+        padding: 1rem !important;
+    }
+
+    .CodeMirror-fullscreen {
+        background: var(--bg-primary) !important;
+    }
+
+    .hidden-folder {
+        display: none;
+    }
+
+    /* Toolbar button styling */
+    .editor-toolbar a {
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        padding: 0 !important;
+        margin: 0 4px !important;
+        font-size: 16px !important;
+        color: var(--text-primary) !important;
+        border: none;
+        border-radius: 6px !important;
+        cursor: pointer !important;
+        text-decoration: none !important;
+        opacity: 1 !important;
+    }
+    .editor-toolbar a:hover,
+    .editor-toolbar a.active {
+        color: white !important;
+        background: var(--bg-secondary) !important;
+        border-color: var(--bg-secondary) !important;
+        border: 3px solid var(--border-color) !important;
+    }
+
+    .editor-toolbar a::before {
+        line-height: 35px !important;
+    }
+
+    .editor-toolbar a.fa-header::after {
+        font-size: 14px !important;
+        vertical-align: middle !important;
+    }
+
+    /* Save button styling */
+    .btn-primary {
+        background-color: #0d6efd !important;
+        border-color: #0d6efd !important;
+        color: white !important;
+    }
+
+    .btn-primary:hover {
+        background-color: #0b5ed7 !important;
+        border-color: #0a58ca !important;
+    }
+    .editor-toolbar.fullscreen::after, .editor-toolbar.fullscreen::before{
+        height: 0;
+        width: 0;
+    }
+</style>
+{% endblock %} 

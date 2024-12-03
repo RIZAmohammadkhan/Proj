@@ -1,0 +1,513 @@
+{% extends "base.html" %}
+{% block title %}Home{% endblock %}
+
+{% block content %}
+{% if current_user.is_authenticated %}
+    <div class="home-header">
+        <h1>Prompt Manager</h1>
+        <div class="search-container">
+            <form action="{{ url_for('main.home') }}" method="get" class="search-form">
+                <input type="text" 
+                       name="q" 
+                       placeholder="" 
+                       value="{{ search_query if search_query else '' }}"
+                       class="search-input">
+                <button type="submit" class="search-button">
+                    <i class="fas fa-search"></i>
+                </button>
+                {% if search_query %}
+                <a href="{{ url_for('main.home') }}" class="clear-search">
+                    <i class="fas fa-times"></i>
+                </a>
+                {% endif %}
+            </form>
+        </div>
+        <div class="actions-container">
+            <a href="{{ url_for('main.create_prompt') }}" class="action-btn btn btn-primary" title="New Prompt">
+                <i class="fas fa-plus"></i>
+            </a>
+            <button onclick="showCreateFolderModal()" class="action-btn btn btn-primary" title="New Folder">
+                <i class="fas fa-folder-plus"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Create Folder Modal -->
+    <div id="createFolderModal" class="modal">
+        <div class="modal-content">
+            <h2>Create New Folder</h2>
+            <form action="{{ url_for('main.create_folder') }}" method="post">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="form-group">
+                    <label for="folderName">Folder Name</label>
+                    <input type="text" id="folderName" name="name" class="form-control" required autofocus>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn" onclick="hideCreateFolderModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-folder-plus"></i> Create Folder
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {% for folder in folders %}
+    <div class="card folder-container" data-folder-id="{{ folder.id }}">
+        <div class="folder-header" onclick="toggleFolder(event, '{{ folder.id }}')" ondrop="dropOnFolder(event, '{{ folder.id }}')" ondragover="allowDrop(event)">
+            <h2>
+                <i class="fas fa-folder"></i> {{ folder.name }}
+                {% if search_query and folder.prompts %}
+                <span class="match-count">({{ folder.prompts|length }} matching prompts)</span>
+                {% endif %}
+            </h2>
+            <button class="btn btn-danger" onclick="showDeleteFolderModal('{{ folder.id }}', '{{ folder.name }}')" style="padding: 0.4rem 0.75rem;">
+                <i class="fas fa-trash"></i>
+            </button>
+        </div>
+        <div class="grid prompt-container" data-folder-id="{{ folder.id }}" {% if search_query and folder.prompts %}style="display: grid;"{% else %}style="display: none;"{% endif %}>
+            {% for prompt in folder.prompts %}
+            <div class="card prompt-card" draggable="true" ondragstart="drag(event)" data-prompt-id="{{ prompt.id }}">
+                <h3>{{ prompt.title }}</h3>
+                <div class="prompt-content">{{ prompt.content }}</div>
+                <div class="prompt-actions">
+                    <a href="{{ url_for('main.edit_prompt', prompt_id=prompt.id) }}" class="btn btn-primary" title="Edit">
+                        <i class="fas fa-edit"></i>
+                    </a>
+                    <button onclick="showDeletePromptModal('{{ prompt.id }}', '{{ prompt.title }}')" class="btn btn-danger" title="Delete">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endfor %}
+
+    {% if prompts %}
+    <h2 style="margin-top: 2rem;">
+        <i class="fas fa-file-alt"></i> 
+        {% if search_query %}
+        Matching Uncategorized Prompts ({{ prompts|length }})
+        {% else %}
+        Uncategorized Prompts
+        {% endif %}
+    </h2>
+    <div class="grid prompt-container" data-folder-id="" ondrop="drop(event)" ondragover="allowDrop(event)">
+        {% for prompt in prompts %}
+        <div class="card prompt-card" draggable="true" ondragstart="drag(event)" data-prompt-id="{{ prompt.id }}">
+            <h3>{{ prompt.title }}</h3>
+            <div class="prompt-content">{{ prompt.content }}</div>
+            <div class="prompt-actions">
+                <a href="{{ url_for('main.edit_prompt', prompt_id=prompt.id) }}" class="btn btn-primary" title="Edit">
+                    <i class="fas fa-edit"></i>
+                </a>
+                <button onclick="showDeletePromptModal('{{ prompt.id }}', '{{ prompt.title }}')" class="btn btn-danger" title="Delete">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Delete Folder Modal -->
+    <div id="deleteFolderModal" class="modal">
+        <div class="modal-content">
+            <h2 style="color: var(--danger);">Delete Folder?</h2>
+            <p style="margin: 1rem 0; color: var(--text-secondary);">
+                Are you sure you want to delete the folder "<span id="folderName"></span>"?
+                This will permanently delete all prompts inside this folder.
+            </p>
+            <div class="modal-actions">
+                <button class="btn" onclick="hideDeleteFolderModal()">Cancel</button>
+                <form id="deleteFolderForm" method="post" style="display: inline;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-danger" title="Delete Folder">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Prompt Modal -->
+    <div id="deletePromptModal" class="modal">
+        <div class="modal-content">
+            <h2 style="color: var(--danger);">Delete Prompt?</h2>
+            <p style="margin: 1rem 0; color: var(--text-secondary);">
+                Are you sure you want to delete "<span id="promptTitle"></span>"?
+            </p>
+            <div class="modal-actions">
+                <button class="btn" onclick="hideDeletePromptModal()">Cancel</button>
+                <form id="deletePromptForm" method="post" style="display: inline;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-danger" title="Delete Prompt">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        .prompt-container {
+            min-height: 100px;
+            padding: 1rem;
+            border: 2px dashed transparent;
+            transition: all 0.2s;
+        }
+
+        .prompt-container.drag-over {
+            border-color: var(--accent-primary);
+            background-color: var(--bg-tertiary);
+        }
+
+        .prompt-card {
+            cursor: move;
+            transition: all 0.2s;
+        }
+
+        .prompt-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .prompt-card.dragging {
+            opacity: 0.5;
+        }
+
+        .error-toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background-color: var(--danger);
+            color: white;
+            padding: 1rem 2rem;
+            border-radius: 0.25rem;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+            z-index: 1000;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .prompt-card {
+            cursor: move;
+            transition: all 0.2s;
+            background-color: var(--card-bg);
+            position: relative;
+            z-index: 1;
+        }
+
+        .prompt-container {
+            min-height: 100px;
+            padding: 1rem;
+            border: 2px dashed transparent;
+            transition: all 0.2s;
+            position: relative;
+        }
+
+        .prompt-container.drag-over {
+            border-color: var(--accent-primary);
+            background-color: var(--bg-tertiary);
+        }
+
+        .prompt-container.drag-over::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: var(--accent-primary);
+            opacity: 0.1;
+            pointer-events: none;
+        }
+
+        .top-actions {
+            position: sticky;
+            top: 70px; /* Adjust based on your navbar height */
+            z-index: 900;
+            background-color: var(--bg-primary);
+            padding: 1rem 0;
+            margin: -2rem 0 2rem 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .modal-content {
+            animation: slideDown 0.3s ease-out;
+        }
+
+        @keyframes slideDown {
+            from {
+                transform: translateY(-50px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .actions-container {
+            margin-bottom: 2rem;
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .action-btn {
+            height: 38px;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0 1rem;
+            font-size: 14px;
+            line-height: 1;
+            text-decoration: none;
+        }
+
+        .search-container {
+            margin-bottom: 2rem;
+        }
+
+        .search-form {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .search-input {
+            flex: 1;
+            padding: 0.75rem 1rem;
+            border: 1px solid var(--border-color);
+            border-radius: 0.25rem;
+            background-color: var(--input-bg);
+            color: var(--text-primary);
+            font-size: 1rem;
+            transition: all 0.2s;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 0 2px rgba(var(--accent-primary-rgb), 0.1);
+        }
+
+        .search-button {
+            padding: 0.75rem 1rem;
+            background-color: var(--accent-primary);
+            color: white;
+            border: none;
+            border-radius: 0.25rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .search-button:hover {
+            background-color: var(--accent-primary-dark);
+        }
+
+        .clear-search {
+            padding: 0.75rem 1rem;
+            color: var(--text-secondary);
+            text-decoration: none;
+            border-radius: 0.25rem;
+            transition: all 0.2s;
+        }
+
+        .clear-search:hover {
+            color: var(--text-primary);
+            background-color: var(--bg-tertiary);
+        }
+
+        {% if search_query %}
+        .folder-container:empty,
+        .prompt-container:empty {
+            display: none;
+        }
+        
+        .folder-container:not(:empty),
+        .prompt-container:not(:empty) {
+            margin-bottom: 2rem;
+        }
+        {% endif %}
+
+        .home-header {
+            margin-bottom: 2rem;
+        }
+
+        .home-header h1 {
+            font-size: 2rem;
+            margin-bottom: 1.5rem;
+            color: var(--text-primary);
+        }
+
+        .prompt-actions {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+
+        .prompt-actions .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 35px;
+            height: 35px;
+            padding: 0;
+            border-radius: 6px;
+        }
+
+        .prompt-actions .btn i {
+            font-size: 1rem;
+        }
+
+        .prompt-card {
+            position: relative;
+            padding: 1.5rem !important;
+            padding-bottom: 1.5rem !important;
+            min-height: 100px;
+            margin: 0;
+        }
+
+        .prompt-header h3 {
+            margin: 0 0 1rem 0;
+        }
+
+        .prompt-content {
+            color: var(--text-secondary);
+            margin-bottom: 1rem;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+        }
+
+        .prompt-actions {
+            display: flex;
+            align-items: center;
+            margin-top: 1rem;
+        }
+
+        .prompt-actions .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 35px;
+            height: 35px;
+            padding: 0;
+            border-radius: 6px;
+        }
+
+        .prompt-actions .btn i {
+            font-size: 1rem;
+        }
+
+        .prompt-actions .btn-secondary {
+            background: #0d6efd;
+            color: white;
+        }
+
+        .prompt-actions .btn-secondary:hover {
+            background: #0b5ed7;
+        }
+
+        .prompt-actions .btn-danger {
+            position: absolute;
+            right: 1rem;
+            bottom: 1rem;
+        }
+    </style>
+
+    <script>
+        // Get CSRF token from meta tag
+        const csrfToken = "{{ csrf_token() }}";
+
+        // Modal functions
+        function showDeleteFolderModal(folderId, folderName) {
+            const modal = document.getElementById('deleteFolderModal');
+            const form = document.getElementById('deleteFolderForm');
+            const nameSpan = document.getElementById('folderName');
+            
+            form.action = "{{ url_for('main.delete_folder', folder_id=0) }}".replace('0', folderId);
+            nameSpan.textContent = folderName;
+            modal.style.display = 'block';
+        }
+
+        function hideDeleteFolderModal() {
+            const modal = document.getElementById('deleteFolderModal');
+            modal.style.display = 'none';
+        }
+
+        function showDeletePromptModal(promptId, promptTitle) {
+            const modal = document.getElementById('deletePromptModal');
+            const form = document.getElementById('deletePromptForm');
+            const titleSpan = document.getElementById('promptTitle');
+            
+            form.action = "{{ url_for('main.delete_prompt', prompt_id=0) }}".replace('0', promptId);
+            titleSpan.textContent = promptTitle;
+            modal.style.display = 'block';
+        }
+
+        function hideDeletePromptModal() {
+            const modal = document.getElementById('deletePromptModal');
+            modal.style.display = 'none';
+        }
+
+        // Close modals when clicking outside
+        window.onclick = function(event) {
+            const folderModal = document.getElementById('deleteFolderModal');
+            const promptModal = document.getElementById('deletePromptModal');
+            const createFolderModal = document.getElementById('createFolderModal');
+            
+            if (event.target == folderModal) {
+                folderModal.style.display = 'none';
+            }
+            if (event.target == promptModal) {
+                promptModal.style.display = 'none';
+            }
+            if (event.target == createFolderModal) {
+                hideCreateFolderModal();
+            }
+        }
+
+        // Add these new modal functions
+        function showCreateFolderModal() {
+            const modal = document.getElementById('createFolderModal');
+            const input = document.getElementById('folderName');
+            modal.style.display = 'block';
+            // Focus the input after the modal animation
+            setTimeout(() => input.focus(), 100);
+        }
+
+        function hideCreateFolderModal() {
+            const modal = document.getElementById('createFolderModal');
+            modal.style.display = 'none';
+            // Clear the input when closing
+            document.getElementById('folderName').value = '';
+        }
+    </script>
+{% else %}
+    <div style="text-align: center; padding: 4rem 0;">
+        <h1>Welcome to Prompt Manager</h1>
+        <p>Create, organize, and manage your prompts with ease.</p>
+        <div style="margin-top: 2rem;">
+            <a href="{{ url_for('auth.login') }}" class="btn btn-primary">Get Started</a>
+        </div>
+    </div>
+{% endif %}
+{% endblock %} 

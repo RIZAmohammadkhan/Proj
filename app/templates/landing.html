@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Welcome{% endblock %}
+
+{% block content %}
+<div style="text-align: center; padding: 4rem 0; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: calc(100vh - 8rem);">
+    <h1 style="font-size: 3.5rem; margin-bottom: 2rem;">Prompt Manager</h1>
+    <p class="lead" style="font-size: 1.25rem; color: var(--text-secondary); max-width: 600px; margin: 0 auto 4rem;">
+        A modern, minimalist tool for creating and organizing your prompts
+    </p>
+    <div style="width: 100%; max-width: 1200px; margin: 0 auto;">
+        <div class="grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 2rem;">
+            <div class="card" style="background: linear-gradient(145deg, var(--bg-secondary), var(--bg-tertiary));">
+                <i class="fas fa-pen" style="font-size: 2rem; color: var(--accent-primary); margin-bottom: 1rem;"></i>
+                <h3>Rich Text Editing</h3>
+                <p style="color: var(--text-secondary);">Format your prompts with Markdown, including bold, italic, and code blocks.</p>
+            </div>
+            <div class="card" style="background: linear-gradient(145deg, var(--bg-secondary), var(--bg-tertiary));">
+                <i class="fas fa-folder" style="font-size: 2rem; color: var(--accent-primary); margin-bottom: 1rem;"></i>
+                <h3>Organization</h3>
+                <p style="color: var(--text-secondary);">Keep your prompts organized in folders for easy access.</p>
+            </div>
+            <div class="card" style="background: linear-gradient(145deg, var(--bg-secondary), var(--bg-tertiary));">
+                <i class="fas fa-text-height" style="font-size: 2rem; color: var(--accent-primary); margin-bottom: 1rem;"></i>
+                <h3>Customization</h3>
+                <p style="color: var(--text-secondary);">Adjust font size and styling to your preference.</p>
+            </div>
+        </div>
+    </div>
+    <div style="margin-top: 4rem;">
+        <a href="{{ url_for('auth.register') }}" class="btn btn-primary" style="font-size: 1.1rem; padding: 1rem 2.5rem; gap: 0.75rem;">
+            <i class="fas fa-rocket"></i> Get Started
+        </a>
+    </div>
+</div>
+
+<style>
+    .card {
+        text-align: center;
+        padding: 2rem;
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+    }
+
+    .lead {
+        font-weight: 300;
+    }
+</style>
+{% endblock %} 
