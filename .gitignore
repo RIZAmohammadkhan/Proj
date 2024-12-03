@@ -1,3 +1,14 @@
+# Environment variables
+.env
+.env.*
+
+# Database
+*.db
+instance/
+*.sqlite
+*.sqlite3
+prompts.db
+
 # Python
 __pycache__/
 *.py[cod]
@@ -24,7 +35,6 @@ wheels/
 venv/
 env/
 ENV/
-.env
 
 # IDE specific files
 .idea/
@@ -36,11 +46,6 @@ ENV/
 # Flask
 instance/
 .webassets-cache
-
-# Database
-*.db
-*.sqlite
-*.sqlite3
 
 # Logs
 *.log
@@ -58,11 +63,5 @@ coverage.xml
 *.cover
 .hypothesis/
 
-# Jupyter Notebook
-.ipynb_checkpoints
-
-# pyenv
-.python-version
-
-# Backup files
-*.bak 
+# Migration files
+migrations/ 
