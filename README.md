@@ -27,38 +27,20 @@ A modern, minimalist Flask web application for creating, organizing, and managin
 - Side-by-side editing mode
 - Fullscreen editing support
 
-### Technical Features
-- Flask-based backend
-- SQLAlchemy ORM
-- Flask-Mail for email verification
-- Database migrations with Flask-Migrate
-- Environment variable configuration
-- CSRF protection with Flask-WTF
+## Quick Start
 
-## Technology Stack
+1. Clone the repository using VS Code:
+   - Open VS Code
+   - Press `Ctrl+Shift+P` (Windows/Linux) or `Cmd+Shift+P` (Mac)
+   - Type "Git: Clone"
+   - Paste the repository URL
+   - Select a local folder
 
-- **Backend**: Flask 3.0.0
-- **Database**: SQLAlchemy with Flask-SQLAlchemy 3.1.1
-- **Authentication**: Flask-Login 0.6.3
-- **Forms**: Flask-WTF 1.2.1
-- **Password Hashing**: Flask-Bcrypt 1.0.1
-- **Email**: Flask-Mail
-- **Database Migrations**: Flask-Migrate 4.0.5
-- **Environment Variables**: python-dotenv 1.0.0
-
-## Installation
-
-1. Clone the repository:
-   ```bash
-   git clone <repository-url>
-   cd prompt-manager
-   ```
-
-2. Create a virtual environment and activate it:
+2. Set up Python environment:
    ```bash
    python -m venv venv
    # On Windows
-   venv\Scripts\activate
+   .\venv\Scripts\activate
    # On Unix or MacOS
    source venv/bin/activate
    ```
@@ -68,24 +50,29 @@ A modern, minimalist Flask web application for creating, organizing, and managin
    pip install -r requirements.txt
    ```
 
-4. Create a `.env` file in the root directory with the following:
-   ```
-   SECRET_KEY=your_secure_secret_key_here
-   EMAIL_USER=your-gmail@gmail.com
-   EMAIL_PASS=your-app-specific-password
+4. Configure environment:
+   ```bash
+   # Copy example environment file
+   cp .env.example .env
    ```
 
 5. Set up Gmail for email verification:
-   - Enable 2-Step Verification in your Google Account
-   - Generate an App Password:
-     1. Go to Google Account Settings
-     2. Navigate to Security
-     3. Under "2-Step Verification", select "App passwords"
-     4. Generate a password for Mail
-     5. Use this password as EMAIL_PASS in .env
+   - Go to your [Google Account Security Settings](https://myaccount.google.com/security)
+   - Enable 2-Step Verification if not enabled
+   - Create an App Password:
+     1. Go to Security → 2-Step Verification → App passwords
+     2. Select 'Mail' and your device
+     3. Copy the generated 16-character password
+   - Update `.env` file with:
+     ```
+     EMAIL_USER=your-gmail@gmail.com
+     EMAIL_PASS=your-16-char-app-password
+     ```
 
-6. Initialize the database:
+6. Initialize database:
    ```bash
+   flask db init
+   flask db migrate -m "Initial migration"
    flask db upgrade
    ```
 
@@ -94,77 +81,135 @@ A modern, minimalist Flask web application for creating, organizing, and managin
    python run.py
    ```
 
-## Usage
+## VS Code Development Setup
 
-1. Register a new account
-2. Verify your email through the verification link
-3. Login with your credentials
-4. Create folders to organize your prompts
-5. Create new prompts with the rich text editor
-6. Use the search functionality to find specific prompts
-7. Organize prompts by moving them between folders
+1. Recommended extensions:
+   - Python (Microsoft)
+   - Python Indent
+   - GitLens
+   - SQLite Viewer
+   - Prettier
 
-## Project Structure
+2. Workspace settings (`.vscode/settings.json`):
+   ```json
+   {
+     "python.linting.enabled": true,
+     "python.linting.flake8Enabled": true,
+     "editor.formatOnSave": true,
+     "python.formatting.provider": "black"
+   }
+   ```
 
+## Email Verification System
+
+The application implements a secure email verification system:
+
+1. Registration Process:
+   - User registers with email and password
+   - Account is created in an unverified state
+   - Verification email is sent with a secure token
+   - Token expires after 1 hour for security
+
+2. Verification:
+   - User clicks link in email
+   - Token is validated
+   - Account is marked as verified
+   - User can now log in
+
+3. Security Features:
+   - Time-limited tokens (1 hour expiry)
+   - Secure token generation using URLSafeTimedSerializer
+   - Protection against token tampering
+   - One-time use tokens
+
+## Database Structure
+
+```sql
+User
+- id (Primary Key)
+- username (Unique)
+- email (Unique)
+- password (Hashed)
+- email_verified (Boolean)
+
+Folder
+- id (Primary Key)
+- name
+- user_id (Foreign Key)
+- created_at
+
+Prompt
+- id (Primary Key)
+- title
+- content
+- folder_id (Foreign Key, Optional)
+- user_id (Foreign Key)
+- created_at
+- updated_at
 ```
-prompt-manager/
-├── app/
-│   ├── __init__.py      # Application factory and extensions
-│   ├── models.py        # Database models
-│   ├── routes.py        # Main routes
-│   ├── auth.py         # Authentication routes
-│   ├── static/         # Static files (CSS, JS)
-│   └── templates/      # HTML templates
-├── instance/           # Instance-specific files
-├── migrations/         # Database migrations
-├── requirements.txt    # Project dependencies
-├── .env               # Environment variables
-└── run.py             # Application entry point
-```
 
-## Security Features
+## API Routes
 
-- Password hashing with Bcrypt
-- Email verification with time-limited tokens
-- CSRF protection on all forms
-- Secure session handling
-- Protected routes requiring authentication
-- Secure password reset functionality
+### Authentication
+- `/register` - User registration
+- `/login` - User login
+- `/logout` - User logout
+- `/verify_email/<token>` - Email verification
+
+### Prompts
+- `/` - Home/Dashboard
+- `/create_prompt` - Create new prompt
+- `/edit_prompt/<id>` - Edit existing prompt
+- `/delete_prompt/<id>` - Delete prompt
+
+### Folders
+- `/create_folder` - Create new folder
+- `/delete_folder/<id>` - Delete folder and its prompts
+
+## Error Handling
+
+The application includes comprehensive error handling:
+- Invalid email verification tokens
+- Expired tokens
+- Database constraints
+- Form validation
+- Authentication errors
+
+## Security Considerations
+
+1. Password Security:
+   - Passwords are hashed using Bcrypt
+   - Minimum password requirements enforced
+   - Protection against brute force attacks
+
+2. Email Security:
+   - Secure token generation
+   - Limited token validity
+   - Protection against email spoofing
+
+3. Data Protection:
+   - CSRF protection on all forms
+   - Secure session handling
+   - Input validation and sanitization
 
 ## Contributing
 
 1. Fork the repository
-2. Create a new branch for your feature
-3. Commit your changes
-4. Push to the branch
-5. Create a Pull Request
-
-## Development
-
-To set up the development environment:
-
-1. Install development dependencies:
-   ```bash
-   pip install -r requirements-dev.txt
-   ```
-
-2. Run tests:
-   ```bash
-   python -m pytest
-   ```
-
-3. Check code style:
-   ```bash
-   flake8
-   ```
+2. Create a feature branch
+3. Make your changes
+4. Run tests
+5. Submit a pull request
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the MIT License.
 
-## Acknowledgments
+## Support
 
-- Flask and its extensions
-- SimpleMDE for Markdown editing
-- Bootstrap for base styling
-- Font Awesome for icons 
+For support, please:
+1. Check existing issues
+2. Create a new issue with:
+   - Clear description
+   - Steps to reproduce
+   - Expected behavior
+   - Screenshots if applicable
