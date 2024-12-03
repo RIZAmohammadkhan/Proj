@@ -23,11 +23,11 @@
         </div>
 
         <div class="editor-footer">
-            <button type="button" onclick="showExitWarning()" class="btn btn-secondary">
-                <i class="fas fa-arrow-left"></i> Back
+            <button type="button" onclick="showExitWarning()" class="btn btn-secondary" title="Back">
+                <i class="fas fa-arrow-left"></i>
             </button>
-            <button type="submit" class="btn btn-primary">
-                <i class="fas fa-save"></i> Save
+            <button type="submit" class="btn btn-primary" title="Save">
+                <i class="fas fa-save"></i>
             </button>
         </div>
     </form>
@@ -55,6 +55,140 @@
         </div>
     </div>
 </div>
+
+<!-- Add SimpleMDE CSS -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/simplemde/latest/simplemde.min.css">
+<!-- Add SimpleMDE JS -->
+<script src="https://cdn.jsdelivr.net/simplemde/latest/simplemde.min.js"></script>
+
+<script>
+    // Initialize SimpleMDE with custom options
+    var simplemde = new SimpleMDE({
+        element: document.getElementById("content"),
+        spellChecker: false,
+        autosave: {
+            enabled: true,
+            uniqueId: "createPrompt",
+            delay: 1000,
+        },
+        toolbar: [
+            "bold", "italic", "heading", "|",
+            "quote", "unordered-list", "ordered-list", "|",
+            "link", "image", "code", "|",
+            {
+                name: "preview",
+                action: SimpleMDE.togglePreview,
+                className: "fa fa-eye no-disable",
+                title: "Toggle Preview"
+            },
+            {
+                name: "side-by-side",
+                action: function customFunction(editor) {
+                    SimpleMDE.toggleSideBySide(editor);
+                    const logoutBtn = document.querySelector('.logout-btn');
+                    if (editor.codemirror.getOption("fullScreen")) {
+                        logoutBtn.style.display = 'none';
+                    } else {
+                        logoutBtn.style.display = 'flex';
+                    }
+                },
+                className: "fa fa-columns no-disable",
+                title: "Toggle Side by Side"
+            },
+            {
+                name: "fullscreen",
+                action: function customFunction(editor) {
+                    const isFullscreen = !editor.isFullscreenActive();
+                    SimpleMDE.toggleFullScreen(editor);
+                    // Update icon based on fullscreen state
+                    const button = editor.toolbarElements["fullscreen"];
+                    const logoutBtn = document.querySelector('.logout-btn');
+                    if (isFullscreen) {
+                        button.className = button.className.replace("fa-expand", "fa-compress");
+                        logoutBtn.style.display = 'none';
+                    } else {
+                        button.className = button.className.replace("fa-compress", "fa-expand");
+                        logoutBtn.style.display = 'flex';
+                    }
+                },
+                className: "fa fa-expand no-disable",
+                title: "Toggle Fullscreen"
+            },
+            "|",
+            "guide"
+        ],
+        status: ["autosave", "lines", "words"],
+        placeholder: "Start writing your prompt here...",
+    });
+
+    // Handle preview state changes
+    simplemde.codemirror.on("refresh", function() {
+        const logoutBtn = document.querySelector('.logout-btn');
+        if (simplemde.isPreviewActive() || simplemde.isFullscreenActive()) {
+            logoutBtn.style.display = 'none';
+        } else {
+            logoutBtn.style.display = 'flex';
+        }
+    });
+
+    // Update hidden folder field when select changes
+    function updateFolderField() {
+        const select = document.getElementById('folder_select');
+        const hiddenInput = document.getElementById('folder');
+        hiddenInput.value = select.value;
+    }
+
+    // Set initial folder value
+    updateFolderField();
+
+    // Exit warning functionality
+    let hasUnsavedChanges = false;
+    const modal = document.getElementById('exitWarningModal');
+
+    simplemde.codemirror.on("change", function() {
+        hasUnsavedChanges = true;
+    });
+
+    document.getElementById('title').addEventListener('input', function() {
+        hasUnsavedChanges = true;
+    });
+
+    document.getElementById('folder_select').addEventListener('change', function() {
+        hasUnsavedChanges = true;
+    });
+
+    function showExitWarning() {
+        if (hasUnsavedChanges) {
+            modal.style.display = "block";
+        } else {
+            window.location.href = "{{ url_for('main.home') }}";
+        }
+    }
+
+    function closeExitWarning() {
+        modal.style.display = "none";
+    }
+
+    function exitWithoutSaving() {
+        window.location.href = "{{ url_for('main.home') }}";
+    }
+
+    function saveAndExit() {
+        document.getElementById('createForm').submit();
+    }
+
+    // Close modal if clicking outside
+    window.onclick = function(event) {
+        if (event.target == modal) {
+            closeExitWarning();
+        }
+    }
+
+    // Form submission
+    document.getElementById('createForm').addEventListener('submit', function() {
+        hasUnsavedChanges = false;
+    });
+</script>
 
 <style>
     .editor-container {
@@ -95,6 +229,7 @@
         background: var(--bg-secondary);
         color: var(--text-primary);
         transition: all 0.3s ease;
+        caret-color: #fff !important;
     }
 
     .title-input:focus {
@@ -156,12 +291,14 @@
     }
 
     .btn-primary {
-        background: var(--primary-color);
-        color: white;
+        background: #0d6efd !important;
+        border-color: #0d6efd !important;
+        color: white !important;
     }
 
     .btn-primary:hover {
-        background: var(--primary-dark);
+        background: #0b5ed7 !important;
+        border-color: #0a58ca !important;
         transform: translateY(-1px);
     }
 
@@ -250,28 +387,39 @@
         }
     }
 
-    /* Enhanced SimpleMDE customization */
+    /* SimpleMDE customizations */
+    .CodeMirror {
+        background: var(--bg-secondary) !important;
+        color: var(--text-primary) !important;
+        border: none !important;
+        border-radius: 0 !important;
+    }
+
+    .CodeMirror-cursor {
+        border-left: 1px solid #fff !important;
+    }
+
     .editor-toolbar {
-        border: none;
-        background: transparent;
-        padding: 0.75rem;
-        opacity: 1 !important;
-        border: none;
+        border: none !important;
+        border-bottom: 1px solid var(--border-color) !important;
+        background: var(--bg-primary) !important;
+        border-radius: 0 !important;
+        padding: 0 0.5rem !important;
     }
 
     .editor-toolbar a {
+        color: var(--text-primary) !important;
+        border: none !important;
+        border-radius: 4px !important;
+        margin: 0.25rem !important;
         display: inline-flex !important;
         align-items: center !important;
         justify-content: center !important;
         padding: 0 !important;
         margin: 0 4px !important;
         font-size: 16px !important;
-        color: var(--text-primary) !important;
-        border: none;
-        border-radius: 6px !important;
-        cursor: pointer !important;
-        text-decoration: none !important;
-        opacity: 1 !important;
+        width: 35px !important;
+        height: 35px !important;
     }
 
     .editor-toolbar a:hover,
@@ -286,91 +434,37 @@
         line-height: 35px !important;
     }
 
-    .editor-toolbar a.fa-header::after {
-        font-size: 14px !important;
-        vertical-align: middle !important;
-    }
-
-    .editor-toolbar i.separator {
-        border-left: 1px solid rgba(200, 200, 200, 0.1);
-        margin: 0 8px;
-    }
-
     .editor-toolbar.disabled-for-preview a:not(.no-disable) {
         background: var(--bg-tertiary) !important;
         opacity: 0.5 !important;
     }
 
-    /* Fullscreen mode improvements */
     .editor-toolbar.fullscreen {
         background: var(--bg-primary) !important;
-        padding: 1rem !important;
     }
 
-    .CodeMirror-fullscreen {
-        background: var(--bg-primary) !important;
+    .editor-toolbar.fullscreen::after,
+    .editor-toolbar.fullscreen::before {
+        display: none !important;
+        width: 0 !important;
+        height: 0 !important;
     }
 
-    .editor-preview-side {
-        background: var(--bg-primary) !important;
-        border-left: 1px solid var(--border-color) !important;
-    }
-
-    .editor-statusbar {
-        padding: 0.75rem;
-        color: var(--text-secondary) !important;
-        border-top: 1px solid var(--border-color);
-        background: var(--bg-primary);
-    }
-
-    /* Save button styling */
-    .btn-primary {
-        background-color: #0d6efd !important;
-        border-color: #0d6efd !important;
-        color: white !important;
-    }
-
-    .btn-primary:hover {
-        background-color: #0b5ed7 !important;
-        border-color: #0a58ca !important;
-    }
-
-    /* Improved CodeMirror styling */
-    .CodeMirror {
-        background: var(--bg-primary) !important;
-        color: var(--text-primary) !important;
-        border: none !important;
-        font-family: 'JetBrains Mono', monospace !important;
-        height: 100% !important;
-        padding: 1rem;
-    }
-
-    .CodeMirror-cursor {
-        border-color: var(--text-primary) !important;
-    }
-
-    .CodeMirror-selected {
-        background: var(--bg-tertiary) !important;
-    }
-
-    .CodeMirror-focused {
-        border-color: var(--primary-color) !important;
-    }
-
-    /* Preview styling */
     .editor-preview,
     .editor-preview-side {
-        background: var(--bg-primary) !important;
+        background: var(--bg-secondary) !important;
         color: var(--text-primary) !important;
-        padding: 2rem !important;
-        font-family: 'sans-serif';
+        padding: 20px !important;
     }
 
+    /* Code block styling for preview */
     .editor-preview pre,
     .editor-preview-side pre {
         background: var(--bg-secondary) !important;
         border-radius: 6px;
         padding: 1rem;
+        font-family: 'JetBrains Mono', monospace !important;
+        border: 1px solid var(--border-color) !important;
     }
 
     .editor-preview code,
@@ -379,135 +473,56 @@
         background: var(--bg-secondary);
         padding: 0.2rem 0.4rem;
         border-radius: 4px;
+        font-family: 'JetBrains Mono', monospace !important;
     }
 
-    .editor-toolbar.fullscreen::after, 
-    .editor-toolbar.fullscreen::before {
-        height: 0;
-        width: 0;
+    /* Preview syntax highlighting */
+    .editor-preview pre code,
+    .editor-preview-side pre code {
+        color: #d4d4d4 !important;
+        background: transparent !important;
+        padding: 0 !important;
+        border: none !important;
     }
 
-    .hidden-folder {
-        display: none;
+    .editor-preview .hljs-keyword,
+    .editor-preview-side .hljs-keyword {
+        color: #569cd6 !important;
+    }
+
+    .editor-preview .hljs-string,
+    .editor-preview-side .hljs-string {
+        color: #ce9178 !important;
+    }
+
+    .editor-preview .hljs-comment,
+    .editor-preview-side .hljs-comment {
+        color: #6a9955 !important;
+    }
+
+    .editor-preview .hljs-function,
+    .editor-preview-side .hljs-function {
+        color: #dcdcaa !important;
+    }
+
+    .editor-preview .hljs-number,
+    .editor-preview-side .hljs-number {
+        color: #b5cea8 !important;
+    }
+
+    .editor-preview .hljs-class,
+    .editor-preview-side .hljs-class {
+        color: #4ec9b0 !important;
+    }
+
+    .editor-preview .hljs-variable,
+    .editor-preview-side .hljs-variable {
+        color: #9cdcfe !important;
+    }
+
+    .editor-preview .hljs-operator,
+    .editor-preview-side .hljs-operator {
+        color: #d4d4d4 !important;
     }
 </style>
-
-<!-- Add SimpleMDE CSS -->
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/simplemde/latest/simplemde.min.css">
-<!-- Add SimpleMDE JS -->
-<script src="https://cdn.jsdelivr.net/simplemde/latest/simplemde.min.js"></script>
-
-<script>
-    // Initialize SimpleMDE with custom options
-    var simplemde = new SimpleMDE({
-        element: document.getElementById("content"),
-        spellChecker: false,
-        autosave: {
-            enabled: true,
-            uniqueId: "createPrompt",
-            delay: 1000,
-        },
-        toolbar: [
-            "bold", "italic", "heading", "|",
-            "quote", "unordered-list", "ordered-list", "|",
-            "link", "image", "code", "|",
-            "preview",
-            {
-                name: "side-by-side",
-                action: function customFunction(editor) {
-                    SimpleMDE.toggleSideBySide(editor);
-                    const logoutBtn = document.querySelector('.logout-btn');
-                    if (editor.codemirror.getOption("fullScreen")) {
-                        logoutBtn.style.display = 'none';
-                    } else {
-                        logoutBtn.style.display = 'flex';
-                    }
-                },
-                className: "fa fa-columns no-disable",
-                title: "Toggle Side by Side"
-            },
-            {
-                name: "fullscreen",
-                action: function customFunction(editor) {
-                    const isFullscreen = !editor.isFullscreenActive();
-                    SimpleMDE.toggleFullScreen(editor);
-                    // Update icon based on fullscreen state
-                    const button = editor.toolbarElements["fullscreen"];
-                    const logoutBtn = document.querySelector('.logout-btn');
-                    if (isFullscreen) {
-                        button.className = button.className.replace("fa-expand", "fa-compress");
-                        logoutBtn.style.display = 'none';
-                    } else {
-                        button.className = button.className.replace("fa-compress", "fa-expand");
-                        logoutBtn.style.display = 'flex';
-                    }
-                },
-                className: "fa fa-expand no-disable",
-                title: "Toggle Fullscreen"
-            },
-            "|",
-            "guide"
-        ],
-        status: ["autosave", "lines", "words"],
-        placeholder: "Start writing your prompt here...",
-    });
-
-    // Update hidden folder field when select changes
-    function updateFolderField() {
-        const select = document.getElementById('folder_select');
-        const hiddenInput = document.getElementById('folder');
-        hiddenInput.value = select.value;
-    }
-
-    // Set initial folder value
-    updateFolderField();
-
-    // Exit warning functionality
-    let hasUnsavedChanges = false;
-    const modal = document.getElementById('exitWarningModal');
-
-    simplemde.codemirror.on("change", function() {
-        hasUnsavedChanges = true;
-    });
-
-    document.getElementById('title').addEventListener('input', function() {
-        hasUnsavedChanges = true;
-    });
-
-    document.getElementById('folder_select').addEventListener('change', function() {
-        hasUnsavedChanges = true;
-    });
-
-    function showExitWarning() {
-        if (hasUnsavedChanges) {
-            modal.style.display = "block";
-        } else {
-            window.location.href = "{{ url_for('main.home') }}";
-        }
-    }
-
-    function closeExitWarning() {
-        modal.style.display = "none";
-    }
-
-    function exitWithoutSaving() {
-        window.location.href = "{{ url_for('main.home') }}";
-    }
-
-    function saveAndExit() {
-        document.getElementById('createForm').submit();
-    }
-
-    // Close modal if clicking outside
-    window.onclick = function(event) {
-        if (event.target == modal) {
-            closeExitWarning();
-        }
-    }
-
-    // Form submission
-    document.getElementById('createForm').addEventListener('submit', function() {
-        hasUnsavedChanges = false;
-    });
-</script>
 {% endblock %} 

@@ -22,11 +22,11 @@
             {{ form.content(class="content-input") }}
         </div>
         <div class="editor-footer">
-            <button type="button" class="btn btn-secondary" onclick="showExitWarning()">
-                <i class="fas fa-arrow-left"></i> Back
+            <button type="button" class="btn btn-secondary" onclick="showExitWarning()" title="Back">
+                <i class="fas fa-arrow-left"></i>
             </button>
-            <button type="submit" class="btn btn-primary">
-                <i class="fas fa-save"></i> Save
+            <button type="submit" class="btn btn-primary" title="Save">
+                <i class="fas fa-save"></i>
             </button>
         </div>
     </form>
@@ -74,7 +74,12 @@
             "bold", "italic", "heading", "|",
             "quote", "unordered-list", "ordered-list", "|",
             "link", "image", "code", "|",
-            "preview",
+            {
+                name: "preview",
+                action: SimpleMDE.togglePreview,
+                className: "fa fa-eye no-disable",
+                title: "Toggle Preview"
+            },
             {
                 name: "side-by-side",
                 action: function customFunction(editor) {
@@ -113,6 +118,16 @@
         ],
         status: ["autosave", "lines", "words"],
         placeholder: "Start writing your prompt here...",
+    });
+
+    // Handle preview state changes
+    simplemde.codemirror.on("refresh", function() {
+        const logoutBtn = document.querySelector('.logout-btn');
+        if (simplemde.isPreviewActive() || simplemde.isFullscreenActive()) {
+            logoutBtn.style.display = 'none';
+        } else {
+            logoutBtn.style.display = 'flex';
+        }
     });
 
     // Update hidden folder field when select changes
